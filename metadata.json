@@ -1,0 +1,8 @@
+{
+  "name": "Cehri50 IPTV Player",
+  "description": "Android TV ve TV Box cihazları için optimize edilmiş, kumanda uyumlu, Xtream Codes ve M3U destekli modern IPTV oynatıcı.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

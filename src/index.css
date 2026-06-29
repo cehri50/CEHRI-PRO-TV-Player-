@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Custom smooth transitions and animations */
+@layer utilities {
+  .animate-fadeIn {
+    animation: fadeIn 0.35s ease-out forwards;
+  }
+  
+  /* TV D-Pad Focus engine classes */
+  .tv-focus-item {
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  .tv-focus-item:focus,
+  .tv-focus-item:focus-within,
+  .tv-focus-item.focused {
+    transform: scale(1.035);
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
+    border-color: #38bdf8 !important;
+    background-color: rgba(14, 165, 233, 0.12) !important;
+    outline: none;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom styling scrollbars for TV listings */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}

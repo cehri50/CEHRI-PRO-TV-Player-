@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <!-- Solid Dark Background -->
+    <path
+        android:fillColor="#0F172A"
+        android:pathData="M0,0h320v180h-320z" />
+    <!-- Diagonal Accent for Depth -->
+    <path
+        android:fillColor="#1E293B"
+        android:pathData="M0,180 L320,0 L320,180 Z" />
+    <!-- TV Outer Border -->
+    <path
+        android:fillColor="#334155"
+        android:pathData="M100,45h120v70h-120z" />
+    <!-- TV Inner Screen (Sky Blue Glow) -->
+    <path
+        android:fillColor="#0284C7"
+        android:pathData="M105,50h110v55h-110z" />
+    <!-- Play Icon on Screen -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M152,65 l22,12.5 l-22,12.5 Z" />
+    <!-- TV Stand -->
+    <path
+        android:fillColor="#334155"
+        android:pathData="M150,115h20v12h-20z" />
+    <!-- TV Base -->
+    <path
+        android:fillColor="#475569"
+        android:pathData="M130,127h60v6h-60z" />
+    <!-- Antennas -->
+    <path
+        android:strokeColor="#475569"
+        android:strokeWidth="3.5"
+        android:pathData="M160,45 L135,20" />
+    <path
+        android:strokeColor="#475569"
+        android:strokeWidth="3.5"
+        android:pathData="M160,45 L185,20" />
+</vector>
