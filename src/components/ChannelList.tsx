@@ -482,9 +482,9 @@ export default function ChannelList({
   }, [filteredChannels, columns, scrollTop, viewportHeight, totalRows, rowHeight]);
 
   return (
-    <div id="channel-list-container" className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-white font-sans max-w-7xl mx-auto p-4 h-[640px] overflow-hidden">
+    <div id="channel-list-container" className="grid grid-cols-1 sm:grid-cols-12 gap-4 md:gap-8 text-white font-sans max-w-7xl mx-auto p-4 h-[640px] overflow-hidden">
       {/* SIDEBAR */}
-      <div id="channel-sidebar" className="lg:col-span-3 bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-800/80 p-5 flex flex-col h-full overflow-hidden">
+      <div id="channel-sidebar" className="col-span-1 sm:col-span-4 lg:col-span-3 bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-800/80 p-4 md:p-5 flex flex-col h-full overflow-hidden">
         
         {/* TAB NAVIGATION */}
         <div id="sidebar-tabs" className="flex gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 mb-5">
@@ -609,7 +609,7 @@ export default function ChannelList({
       </div>
 
       {/* CHANNELS PANEL */}
-      <div id="channels-main" className="lg:col-span-9 bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-800/80 p-5 flex flex-col h-full overflow-hidden">
+      <div id="channels-main" className="col-span-1 sm:col-span-8 lg:col-span-9 bg-slate-900/40 backdrop-blur-md rounded-2xl border border-slate-800/80 p-4 md:p-5 flex flex-col h-full overflow-hidden">
         
         {/* SEARCH AND COUNTS */}
         <div id="channels-header" className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-850">
