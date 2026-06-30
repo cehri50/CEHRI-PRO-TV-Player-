@@ -142,7 +142,44 @@ app.get('/api/m3u/proxy', async (req, res) => {
       throw new Error(`IPTV provider returned status ${response.status}`);
     }
 
-    const content = await response.text();
+    let content = await response.text();
+
+    // Check if this is a Google Drive confirmation warning page (HTML with confirm=...)
+    const isHtml = content.trim().startsWith('<') || content.includes('<html') || (response.headers.get('content-type') || '').includes('text/html');
+    const isGoogleDrive = m3uUrl.includes('google.com') || (response.url && response.url.includes('google.com'));
+
+    if (isHtml && isGoogleDrive) {
+      const confirmMatch = content.match(/confirm=([a-zA-Z0-9_-]+)/i);
+      const idMatch = m3uUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/) || m3uUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || (response.url && (response.url.match(/[?&]id=([a-zA-Z0-9_-]+)/) || response.url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)));
+      const fileId = idMatch ? idMatch[1] : null;
+
+      if (confirmMatch && fileId) {
+        const confirmToken = confirmMatch[1];
+        const downloadUrl = `https://docs.google.com/uc?export=download&id=${fileId}&confirm=${confirmToken}`;
+        console.log(`[Proxy] Google Drive safety warning detected. Token: ${confirmToken}. Re-fetching directly from: ${downloadUrl}`);
+
+        const controllerGD = new AbortController();
+        const timeoutIdGD = setTimeout(() => controllerGD.abort(), 30000);
+
+        const gdResponse = await fetch(downloadUrl, {
+          signal: controllerGD.signal,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9,tr;q=0.8',
+          }
+        });
+        clearTimeout(timeoutIdGD);
+
+        if (gdResponse.ok) {
+          content = await gdResponse.text();
+          console.log(`[Proxy] Google Drive file content successfully fetched after passing warning page.`);
+        } else {
+          console.warn(`[Proxy] Failed to fetch Google Drive file content after passing warning. Status: ${gdResponse.status}`);
+        }
+      }
+    }
+
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.send(content);
