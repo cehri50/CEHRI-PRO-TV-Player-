@@ -176,3 +176,43 @@ export function getApiUrl(path: string, customGateway?: string): string {
   
   return path; // relative path
 }
+
+/**
+ * Converts common sharing URLs (Google Drive, Dropbox, GitHub) into direct raw download/fetch links.
+ * This ensures that when a user pastes a Google Drive view link or a Dropbox sharing link,
+ * the application is able to retrieve the actual file content instead of an HTML preview page.
+ */
+export function convertSharingUrl(url: string): string {
+  let normalized = url.trim();
+
+  // 1. Google Drive Sharing/View Links
+  const fileDMatch = normalized.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileDMatch && fileDMatch[1]) {
+    return `https://docs.google.com/uc?export=download&id=${fileDMatch[1]}`;
+  }
+  
+  const idMatch = normalized.match(/drive\.google\.com\/.*[?&]id=([a-zA-Z0-9_-]+)/);
+  if (idMatch && idMatch[1]) {
+    return `https://docs.google.com/uc?export=download&id=${idMatch[1]}`;
+  }
+
+  const docsDMatch = normalized.match(/docs\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (docsDMatch && docsDMatch[1]) {
+    return `https://docs.google.com/uc?export=download&id=${docsDMatch[1]}`;
+  }
+
+  // 2. Dropbox Sharing Links
+  if (normalized.includes('dropbox.com')) {
+    normalized = normalized.replace('www.dropbox.com', 'dl.dropboxusercontent.com')
+                           .replace('?dl=0', '?dl=1');
+  }
+
+  // 3. GitHub Blob/File Preview Links
+  if (normalized.includes('github.com/') && normalized.includes('/blob/')) {
+    normalized = normalized.replace('github.com', 'raw.githubusercontent.com')
+                           .replace('/blob/', '/');
+  }
+
+  return normalized;
+}
+

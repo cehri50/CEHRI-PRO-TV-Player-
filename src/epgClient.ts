@@ -115,12 +115,29 @@ export async function fetchRealEPG(
           normalizedUrl = 'http://' + normalizedUrl;
         }
         
-        const directUrl = `${normalizedUrl}/player_api.php?username=${playlist.username}&password=${playlist.password}&action=get_short_epg&stream_id=${streamId}`;
-        console.log(`[EPG Client] Native Direct fetch from Xtream API:`, directUrl);
+        // Load settings to read custom gateway URL if set
+        let gatewayUrl = '';
+        try {
+          const saved = localStorage.getItem('nexus_iptv_settings');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed && parsed.gatewayUrl) {
+              gatewayUrl = parsed.gatewayUrl;
+            }
+          }
+        } catch (e) {
+          console.warn('[EPG Client] Failed to parse settings from localStorage', e);
+        }
+
+        let targetUrl = `${normalizedUrl}/player_api.php?username=${playlist.username}&password=${playlist.password}&action=get_short_epg&stream_id=${streamId}`;
+        
+        // Always route through proxy to bypass CORS, cleartext, and self-signed SSL errors!
+        targetUrl = getApiUrl(`/api/xtream/proxy?serverUrl=${encodeURIComponent(normalizedUrl)}&username=${playlist.username}&password=${playlist.password}&action=get_short_epg&stream_id=${streamId}`, gatewayUrl);
+        console.log(`[EPG Client] Tunneling Xtream EPG request via proxy:`, targetUrl);
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
-        const response = await fetch(directUrl, { signal: controller.signal });
+        const response = await fetch(targetUrl, { signal: controller.signal });
         clearTimeout(timeoutId);
         
         if (response.ok) {

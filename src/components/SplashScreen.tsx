@@ -5,6 +5,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Tv, Cpu, ShieldCheck, Check, Terminal, Wifi, Database } from 'lucide-react';
+import cehriLogo from '../assets/images/cehri_logo_1782719992837.jpg';
 
 interface SplashScreenProps {
   onFinish: () => void;
@@ -44,14 +45,14 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
 
   const t = {
     tr: {
-      title: 'NEXUS',
-      subtitle: 'PRO TV BOX ENGINE',
+      title: 'CEHRİ50',
+      subtitle: 'KAPADOKYA TV BOX ENGINE',
       initializing: 'Sistem modülleri ve kumanda sürücüleri kuruluyor...',
       checkingGpu: 'TV Box GPU Hızlandırması test ediliyor (OpenGLES v3.2)...',
       loadingPlayer: 'ExoPlayer v2.18.5 multi-codec modülü yükleniyor...',
       optimizingRam: 'Bellek (RAM) temizleniyor ve önbellek alanı ayrılıyor...',
       loadingPlaylists: 'Kanallar ve EPG rehberi veritabanından çekiliyor...',
-      ready: 'Nexus IPTV oynatıcı hazır! Başlatılıyor...',
+      ready: 'Cehri50 IPTV oynatıcı hazır! Başlatılıyor...',
       stepSys: 'Temel Sürücüler',
       stepGpu: 'GPU Donanım Çözücü',
       stepPlayer: 'ExoPlayer / Media3 Motoru',
@@ -60,14 +61,14 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
       secDecoding: 'DONANIMSAL ÇÖZÜMLEME | SÜRÜM 3.1.0'
     },
     en: {
-      title: 'NEXUS',
-      subtitle: 'PRO TV BOX ENGINE',
+      title: 'CEHRİ50',
+      subtitle: 'KAPADOKYA TV BOX ENGINE',
       initializing: 'Setting up core modules and controller drivers...',
       checkingGpu: 'Testing TV Box GPU acceleration (OpenGLES v3.2)...',
       loadingPlayer: 'Loading ExoPlayer v2.18.5 multi-codec engine...',
       optimizingRam: 'Purging memory RAM & allocating stream cache buffer...',
       loadingPlaylists: 'Syncing channels and EPG guides from SQLite DB...',
-      ready: 'Nexus IPTV engine ready! Launching portal...',
+      ready: 'Cehri50 IPTV engine ready! Launching portal...',
       stepSys: 'Core Drivers',
       stepGpu: 'GPU Decoder HW',
       stepPlayer: 'ExoPlayer / Media3 Engine',
@@ -174,28 +175,34 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
   return (
     <div id="splash-screen-root" className="fixed inset-0 bg-slate-950 flex flex-col items-center justify-center text-white z-50 overflow-hidden font-sans">
       {/* Background Ambient Glow */}
-      <div id="splash-glow-1" className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-sky-500/10 rounded-full blur-[140px] pointer-events-none" />
-      <div id="splash-glow-2" className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none" />
+      <div id="splash-glow-1" className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-amber-500/10 rounded-full blur-[140px] pointer-events-none" />
+      <div id="splash-glow-2" className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-orange-500/5 rounded-full blur-[140px] pointer-events-none" />
 
       <div id="splash-container" className="relative flex flex-col items-center max-w-2xl w-full px-6 text-center z-10 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
         
         {/* LEFT PANEL: BRAND & LOGO */}
         <div id="splash-brand-panel" className="flex flex-col items-center justify-center text-center space-y-4">
           <div id="splash-icon-wrapper" className="relative animate-pulse mb-2">
-            <div id="splash-card" className="p-7 bg-slate-900/60 backdrop-blur-xl rounded-3xl border border-sky-500/20 shadow-2xl shadow-sky-500/10">
-              <Tv id="splash-tv-icon" className="w-16 h-16 text-sky-400 stroke-[1.2]" />
+            <div id="splash-card" className="p-1 bg-gradient-to-br from-amber-500 to-orange-600 rounded-3xl shadow-2xl shadow-amber-500/20 overflow-hidden w-32 h-32 flex items-center justify-center">
+              <img 
+                id="splash-logo-img" 
+                src={cehriLogo} 
+                alt="Cehri Logo" 
+                className="w-[120px] h-[120px] object-cover rounded-[22px]"
+                referrerPolicy="no-referrer"
+              />
             </div>
-            <div id="splash-cpu-badge" className="absolute -bottom-2 -right-2 p-2.5 bg-slate-950 rounded-xl border border-emerald-500/30 shadow-lg">
-              <Cpu id="splash-cpu-icon" className="w-5 h-5 text-emerald-400 animate-spin" style={{ animationDuration: '6s' }} />
+            <div id="splash-cpu-badge" className="absolute -bottom-2 -right-2 p-2.5 bg-slate-950 rounded-xl border border-amber-500/30 shadow-lg">
+              <Cpu id="splash-cpu-icon" className="w-5 h-5 text-amber-500 animate-spin" style={{ animationDuration: '6s' }} />
             </div>
           </div>
 
           <div>
             <h1 id="splash-title" className="text-4xl font-extrabold tracking-wider text-slate-100 flex items-center justify-center gap-1.5">
-              NEXUS<span className="text-sky-400">IPTV</span>
+              CEHRİ<span className="text-amber-500">50</span>
             </h1>
-            <p id="splash-subtitle" className="text-slate-400 text-[10px] font-bold tracking-[0.25em] uppercase">
-              {t.subtitle}
+            <p id="splash-subtitle" className="text-amber-500/70 text-[10px] font-bold tracking-[0.25em] uppercase">
+              KAPADOKYA EDITION
             </p>
           </div>
 
@@ -203,7 +210,7 @@ export default function SplashScreen({ onFinish }: SplashScreenProps) {
             <div id="splash-progress-track" className="h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800/40">
               <div 
                 id="splash-progress-bar"
-                className="h-full bg-gradient-to-r from-sky-500 via-indigo-400 to-emerald-400 rounded-full transition-all duration-300 ease-out"
+                className="h-full bg-gradient-to-r from-amber-500 via-orange-400 to-yellow-500 rounded-full transition-all duration-300 ease-out"
                 style={{ width: `${progress}%` }}
               />
             </div>

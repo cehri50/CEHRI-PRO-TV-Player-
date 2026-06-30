@@ -9,7 +9,7 @@ import {
   Trash2, HelpCircle, ArrowRight, Database, Disc, Settings 
 } from 'lucide-react';
 import { IPTVPlaylist, PlaylistType, IPTVAppSettings } from '../types';
-import { parseM3U, getApiUrl } from '../utils';
+import { parseM3U, getApiUrl, convertSharingUrl } from '../utils';
 import { DEMO_PLAYLIST_ID } from '../demoData';
 
 interface PlaylistManagerProps {
@@ -148,6 +148,9 @@ export default function PlaylistManager({
     if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
       normalizedUrl = 'http://' + normalizedUrl;
     }
+
+    // Convert common sharing URLs (Google Drive, Dropbox, GitHub) to direct download links
+    normalizedUrl = convertSharingUrl(normalizedUrl);
 
     setIsProcessing(true);
     setErrorMsg(null);
@@ -369,12 +372,14 @@ export default function PlaylistManager({
       }
       setPlaylistName(autoName);
 
+      const normalizedDroppedUrl = convertSharingUrl(trimmedText);
+
       // Process immediately
       setIsProcessing(true);
       setErrorMsg(null);
 
       try {
-        const proxyUrl = getApiUrl(`/api/m3u/proxy?url=${encodeURIComponent(trimmedText)}`, settings.gatewayUrl);
+        const proxyUrl = getApiUrl(`/api/m3u/proxy?url=${encodeURIComponent(normalizedDroppedUrl)}`, settings.gatewayUrl);
         let response;
         let text = '';
         

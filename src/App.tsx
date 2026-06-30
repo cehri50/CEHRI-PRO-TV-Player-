@@ -13,7 +13,9 @@ import {
   IPTVPlaylistItem, IPTVPlaylist, IPTVHistoryItem, IPTVAppSettings, IPTVTheme, CrashLog 
 } from './types';
 import { DEMO_PLAYLIST, DEMO_CHANNELS, DEMO_PLAYLIST_ID } from './demoData';
-import { parseM3U, getApiUrl } from './utils';
+import { parseM3U, getApiUrl, convertSharingUrl } from './utils';
+import { RENDER_API_URL } from './config';
+import cehriLogo from './assets/images/cehri_logo_1782719992837.jpg';
 import SplashScreen from './components/SplashScreen';
 import NavigationGuide from './components/NavigationGuide';
 import PlaylistManager from './components/PlaylistManager';
@@ -30,7 +32,7 @@ const LOCAL_STORAGE_HISTORY = 'nexus_iptv_history';
 const LOCAL_STORAGE_SETTINGS = 'nexus_iptv_settings';
 
 const DEFAULT_SETTINGS: IPTVAppSettings = {
-  theme: 'classic-dark',
+  theme: 'golden-royal',
   language: 'tr',
   bufferSize: 'medium',
   hardwareAcceleration: true,
@@ -43,7 +45,7 @@ const DEFAULT_SETTINGS: IPTVAppSettings = {
   leanbackRecommendationsEnabled: true,
   gatewayUrl: typeof window !== 'undefined' && window.location.origin && !window.location.origin.startsWith('file') && !window.location.origin.startsWith('capacitor')
     ? window.location.origin
-    : 'https://ais-dev-dtju7rtia5dcaj4vkqhg7p-209791855733.europe-west1.run.app',
+    : RENDER_API_URL,
   streamProxyEnabled: true
 };
 
@@ -173,6 +175,9 @@ export default function App() {
     if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
       normalizedUrl = 'http://' + normalizedUrl;
     }
+
+    // Convert common sharing URLs (Google Drive, Dropbox, GitHub) to raw content downloads
+    normalizedUrl = convertSharingUrl(normalizedUrl);
 
     let playlistName = 'M3U Playlist';
     try {
@@ -329,13 +334,30 @@ export default function App() {
       if (savedSettings) {
         const parsed = JSON.parse(savedSettings) as IPTVAppSettings;
         // Cleanse old/mismatched gateway URL if user is running on a real cloud run domain,
-        // but their localStorage has the hardcoded dev URL or old hostname
-        if (typeof window !== 'undefined' && window.location.hostname.includes('europe-west1.run.app')) {
-          if (parsed.gatewayUrl && parsed.gatewayUrl.includes('europe-west1.run.app') && !parsed.gatewayUrl.includes(window.location.hostname)) {
-            parsed.gatewayUrl = window.location.origin;
+        // but their localStorage has the hardcoded dev URL or old hostname.
+        // Additionally, if they are running on a native TV Box (Capacitor/localhost) or if their gateway is a stale development URL,
+        // force heal it to the live production Railway proxy URL so it works seamlessly!
+        if (typeof window !== 'undefined') {
+          const isNativeTVBox = window.hasOwnProperty('Capacitor') ||
+            (window as any).Capacitor ||
+            window.location.protocol === 'capacitor:' || 
+            window.location.protocol === 'file:' || 
+            (window.location.hostname === 'localhost' && window.location.port !== '3000');
+
+          const hasStaleDevUrl = parsed.gatewayUrl && parsed.gatewayUrl.includes('run.app') && !window.location.hostname.includes('europe-west1.run.app');
+
+          if (!parsed.gatewayUrl || hasStaleDevUrl) {
+            parsed.gatewayUrl = RENDER_API_URL;
             try {
               localStorage.setItem(LOCAL_STORAGE_SETTINGS, JSON.stringify(parsed));
             } catch (e) {}
+          } else if (window.location.hostname.includes('europe-west1.run.app')) {
+            if (parsed.gatewayUrl && parsed.gatewayUrl.includes('europe-west1.run.app') && !parsed.gatewayUrl.includes(window.location.hostname)) {
+              parsed.gatewayUrl = window.location.origin;
+              try {
+                localStorage.setItem(LOCAL_STORAGE_SETTINGS, JSON.stringify(parsed));
+              } catch (e) {}
+            }
           }
         }
         setSettings(parsed);
@@ -561,22 +583,28 @@ export default function App() {
       onDragOver={handleGlobalDragOver}
     >
       {/* BACKGROUND GRAPHICS GLOW */}
-      <div id="bg-glow-1" className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-sky-500/5 rounded-full blur-[140px] pointer-events-none" />
-      <div id="bg-glow-2" className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-emerald-500/5 rounded-full blur-[140px] pointer-events-none" />
+      <div id="bg-glow-1" className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-[140px] pointer-events-none" />
+      <div id="bg-glow-2" className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-orange-500/5 rounded-full blur-[140px] pointer-events-none" />
 
       {/* TOP STATUS BAR NAVIGATION (Tivimate / OTT Style) */}
       <header id="app-header" className={`relative z-30 ${themeStyle.topbar} backdrop-blur-md border-b px-6 py-4 flex items-center justify-between shadow-lg`}>
         {/* Brand */}
         <div id="brand-logo-group" className="flex items-center gap-3">
-          <div id="brand-icon-wrapper" className="p-2 bg-gradient-to-br from-sky-500 to-sky-600 rounded-xl shadow-lg shadow-sky-500/15">
-            <Tv className="w-5 h-5 text-slate-950" />
+          <div id="brand-icon-wrapper" className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl shadow-lg shadow-amber-500/15 overflow-hidden flex items-center justify-center p-[2px]">
+            <img 
+              id="brand-logo-img" 
+              src={cehriLogo} 
+              alt="Cehri Logo" 
+              className="w-full h-full object-cover rounded-[10px]"
+              referrerPolicy="no-referrer"
+            />
           </div>
           <div>
             <h1 id="brand-title" className="text-base font-bold tracking-wider flex items-center gap-1.5 text-slate-100">
-              NEXUS<span className={themeStyle.accentText}>IPTV</span>
+              CEHRİ<span className={themeStyle.accentText}>50</span>
             </h1>
-            <span id="brand-badge" className="text-[9px] bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded text-slate-500 font-bold font-mono tracking-wider uppercase">
-              TV BOX MODE
+            <span id="brand-badge" className="text-[9px] bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded text-amber-500 font-bold font-mono tracking-wider uppercase">
+              KAPADOKYA EDITION
             </span>
           </div>
         </div>

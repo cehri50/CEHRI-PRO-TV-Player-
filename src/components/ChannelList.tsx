@@ -51,6 +51,11 @@ export default function ChannelList({
   
   const searchInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Refs for remote control OK key long press favorite toggle
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressActive = useRef<boolean>(false);
+  const isKeyPressedRef = useRef<boolean>(false);
 
   // Virtualization States
   const [columns, setColumns] = useState(3);
@@ -126,43 +131,61 @@ export default function ChannelList({
     }
   }[language];
 
-  // Extract all unique groups from channels
+  // Extract all unique groups from channels and prepend FAVORILERIM if there are favorites
   const groups = useMemo(() => {
     const list = new Set<string>();
     channels.forEach(ch => {
       if (ch.group) list.add(ch.group);
     });
-    return ['TÜMÜ_ALL', ...Array.from(list)];
-  }, [channels]);
+    const baseGroups = Array.from(list);
+    if (favorites.length > 0) {
+      return ['FAVORILERIM', 'TÜMÜ_ALL', ...baseGroups];
+    }
+    return ['TÜMÜ_ALL', ...baseGroups];
+  }, [channels, favorites]);
 
   // Filter channels based on tab, group, and search query
   const filteredChannels = useMemo(() => {
     let result = channels;
 
-    // Filter by Tab
-    if (activeTab === 'favorites') {
+    // Filter by Category Group
+    if (selectedGroup === 'FAVORILERIM') {
       result = result.filter(ch => favorites.includes(ch.id));
-    } else if (activeTab === 'history') {
-      // Order by history watched timestamp
-      const historyIds = history.map(h => h.channelId);
-      result = result.filter(ch => historyIds.includes(ch.id));
-      // Sort to match history sequence (most recent first)
-      result = [...result].sort((a, b) => {
-        const indexA = history.findIndex(h => h.channelId === a.id);
-        const indexB = history.findIndex(h => h.channelId === b.id);
-        return indexA - indexB;
-      });
-    }
+    } else {
+      // Filter by Tab
+      if (activeTab === 'favorites') {
+        result = result.filter(ch => favorites.includes(ch.id));
+      } else if (activeTab === 'history') {
+        // Order by history watched timestamp
+        const historyIds = history.map(h => h.channelId);
+        result = result.filter(ch => historyIds.includes(ch.id));
+        // Sort to match history sequence (most recent first)
+        result = [...result].sort((a, b) => {
+          const indexA = history.findIndex(h => h.channelId === a.id);
+          const indexB = history.findIndex(h => h.channelId === b.id);
+          return indexA - indexB;
+        });
+      }
 
-    // Filter by Category Group (if not 'TÜMÜ_ALL' and not in history/favorite mode unless wanted)
-    if (selectedGroup !== 'TÜMÜ_ALL') {
-      result = result.filter(ch => ch.group === selectedGroup);
+      // Filter by Category Group (if not 'TÜMÜ_ALL')
+      if (selectedGroup !== 'TÜMÜ_ALL') {
+        result = result.filter(ch => ch.group === selectedGroup);
+      }
     }
 
     // Filter by Search Query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(ch => ch.name.toLowerCase().includes(q) || ch.group.toLowerCase().includes(q));
+    }
+
+    // Put favorite channels at the top of general lists when in 'all' tab & 'TÜMÜ_ALL' group
+    if (selectedGroup === 'TÜMÜ_ALL' && activeTab === 'all' && favorites.length > 0) {
+      result = [...result].sort((a, b) => {
+        const aFav = favorites.includes(a.id) ? 1 : 0;
+        const bFav = favorites.includes(b.id) ? 1 : 0;
+        return bFav - aFav; // Favorites first
+      });
     }
 
     return result;
@@ -188,6 +211,48 @@ export default function ChannelList({
       const tabsCount = 3;
       const groupsCount = groups.length;
       const channelsCount = filteredChannels.length;
+
+      // Yellow key (standard code 404 or F3 or 'Yellow' or keyboard Y key) to instantly toggle favorite
+      if (
+        e.key === 'F3' || 
+        e.keyCode === 404 || 
+        e.key === 'Yellow' || 
+        e.key.toLowerCase() === 'y'
+      ) {
+        e.preventDefault();
+        if (focusedSection === 'channels' && channelsCount > 0) {
+          const focusedChannel = filteredChannels[focusedChannelIndex];
+          if (focusedChannel) {
+            onToggleFavorite(focusedChannel.id);
+          }
+        }
+        return;
+      }
+
+      // Enter key long-press handler for toggling favorites on channel cards
+      if (e.key === 'Enter') {
+        if (e.repeat) {
+          e.preventDefault();
+          return;
+        }
+
+        if (focusedSection === 'channels' && channelsCount > 0) {
+          e.preventDefault();
+          isLongPressActive.current = false;
+          isKeyPressedRef.current = true;
+
+          if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+
+          longPressTimerRef.current = setTimeout(() => {
+            isLongPressActive.current = true;
+            const focusedChannel = filteredChannels[focusedChannelIndex];
+            if (focusedChannel) {
+              onToggleFavorite(focusedChannel.id);
+            }
+          }, 800); // 800ms threshold for remote control long press
+          return;
+        }
+      }
 
       switch (e.key) {
         case 'ArrowUp':
@@ -282,13 +347,16 @@ export default function ChannelList({
 
         case 'Enter':
           e.preventDefault();
-          if (focusedSection === 'channels' && channelsCount > 0) {
-            onSelectChannel(filteredChannels[focusedChannelIndex]);
-          } else if (focusedSection === 'tabs') {
-            const tabs: ('all' | 'favorites' | 'history')[] = ['all', 'favorites', 'history'];
-            setActiveTab(tabs[focusedTabIndex]);
-          } else if (focusedSection === 'groups') {
-            setSelectedGroup(groups[focusedGroupIndex]);
+          // For non-channel sections, trigger immediately on keydown
+          if (focusedSection !== 'channels') {
+            if (focusedSection === 'tabs') {
+              const tabs: ('all' | 'favorites' | 'history')[] = ['all', 'favorites', 'history'];
+              setActiveTab(tabs[focusedTabIndex]);
+            } else if (focusedSection === 'groups') {
+              setSelectedGroup(groups[focusedGroupIndex]);
+              setFocusedSection('channels');
+              setFocusedChannelIndex(0);
+            }
           }
           break;
 
@@ -303,13 +371,37 @@ export default function ChannelList({
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!keyboardFocusActive) return;
+
+      if (e.key === 'Enter') {
+        if (focusedSection === 'channels') {
+          e.preventDefault();
+          isKeyPressedRef.current = false;
+          if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+
+          if (isLongPressActive.current) {
+            isLongPressActive.current = false;
+          } else {
+            // It was a short press! Select and stream the channel
+            if (filteredChannels[focusedChannelIndex]) {
+              onSelectChannel(filteredChannels[focusedChannelIndex]);
+            }
+          }
+        }
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     };
   }, [
     keyboardFocusActive, focusedSection, focusedTabIndex, focusedGroupIndex, 
-    focusedChannelIndex, groups, filteredChannels, onSelectChannel, columns
+    focusedChannelIndex, groups, filteredChannels, onSelectChannel, columns, onToggleFavorite
   ]);
 
   // Handle focus scrolling synchronization with extreme optimization
@@ -446,7 +538,11 @@ export default function ChannelList({
           {groups.map((group, idx) => {
             const isGroupSelected = selectedGroup === group;
             const isGroupFocused = focusedSection === 'groups' && focusedGroupIndex === idx;
-            const displayName = group === 'TÜMÜ_ALL' ? t.allGroups : group;
+            const displayName = group === 'FAVORILERIM'
+              ? (language === 'tr' ? '⭐ Favorilerim' : '⭐ My Favorites')
+              : group === 'TÜMÜ_ALL' 
+                ? t.allGroups 
+                : group;
 
             return (
               <div
@@ -469,9 +565,11 @@ export default function ChannelList({
               >
                 <span className="truncate pr-2">{displayName}</span>
                 <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${isGroupSelected ? 'bg-sky-500/20 text-sky-300' : 'bg-slate-950/60 text-slate-500'}`}>
-                  {group === 'TÜMÜ_ALL' 
-                    ? channels.length 
-                    : channels.filter(c => c.group === group).length
+                  {group === 'FAVORILERIM'
+                    ? favorites.length
+                    : group === 'TÜMÜ_ALL' 
+                      ? channels.length 
+                      : channels.filter(c => c.group === group).length
                   }
                 </span>
               </div>
@@ -486,7 +584,10 @@ export default function ChannelList({
               {language === 'tr' ? 'Kumanda Kılavuzu' : 'Remote Guide'}
             </div>
             <div>
-              • {language === 'tr' ? 'Kategoriler arasında gezinirken seçmek için ENTER tuşuna basın.' : 'Use ARROWS to highlight, press ENTER to load category.'}
+              • {language === 'tr' ? 'Kategorilerde ENTER basarak kanallara geçebilirsiniz.' : 'Use ARROWS, press ENTER to load category.'}
+            </div>
+            <div>
+              • {language === 'tr' ? 'Kanalda SARI tuş (Klavyede \'Y\') ya da OK tuşuna uzun basarak favoriye ekleyin/çıkarın.' : 'Press YELLOW key (or \'Y\' key) or long-press OK/ENTER on channel to toggle favorite.'}
             </div>
             <div>
               • {language === 'tr' ? 'Kanallar sütunundayken GERİ/ESC ile kategorilere hızlıca dönebilirsiniz.' : 'Press BACK/ESC on channels to return to categories.'}

@@ -4,4 +4,4 @@
  */
 
 // Default local network or external backend URL
-export const RENDER_API_URL = 'http://192.168.1.116:3000'; // Pardus local computer static IP and port
+export const RENDER_API_URL = 'https://cehri50-iptv-proxy-production.up.railway.app'; // Live Railway proxy gateway url

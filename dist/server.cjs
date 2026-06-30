@@ -26,6 +26,7 @@ var import_express = __toESM(require("express"), 1);
 var import_path = __toESM(require("path"), 1);
 var import_vite = require("vite");
 async function startServer() {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
   const app = (0, import_express.default)();
   const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3;
   app.use((req, res, next) => {
@@ -42,16 +43,39 @@ async function startServer() {
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: Date.now() });
   });
+  function convertSharingUrl(urlStr) {
+    let normalized = urlStr.trim();
+    const fileDMatch = normalized.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (fileDMatch && fileDMatch[1]) {
+      return `https://docs.google.com/uc?export=download&id=${fileDMatch[1]}`;
+    }
+    const idMatch = normalized.match(/drive\.google\.com\/.*[?&]id=([a-zA-Z0-9_-]+)/);
+    if (idMatch && idMatch[1]) {
+      return `https://docs.google.com/uc?export=download&id=${idMatch[1]}`;
+    }
+    const docsDMatch = normalized.match(/docs\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (docsDMatch && docsDMatch[1]) {
+      return `https://docs.google.com/uc?export=download&id=${docsDMatch[1]}`;
+    }
+    if (normalized.includes("dropbox.com")) {
+      normalized = normalized.replace("www.dropbox.com", "dl.dropboxusercontent.com").replace("?dl=0", "?dl=1");
+    }
+    if (normalized.includes("github.com/") && normalized.includes("/blob/")) {
+      normalized = normalized.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/");
+    }
+    return normalized;
+  }
   app.get("/api/m3u/proxy", async (req, res) => {
-    const m3uUrl = req.query.url;
+    let m3uUrl = req.query.url;
     if (!m3uUrl) {
       return res.status(400).json({ error: "URL parameter is required" });
     }
+    m3uUrl = convertSharingUrl(m3uUrl);
     try {
       console.log(`[Proxy] Fetching M3U from: ${m3uUrl}`);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3e4);
-      const response = await fetch(m3uUrl, {
+      let response = await fetch(m3uUrl, {
         signal: controller.signal,
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -62,6 +86,24 @@ async function startServer() {
         }
       });
       clearTimeout(timeoutId);
+      const finalUrl = response.url || m3uUrl;
+      const convertedUrl = convertSharingUrl(finalUrl);
+      if (convertedUrl !== finalUrl) {
+        console.log(`[Proxy] Redirect resolved to a sharing URL: ${finalUrl}. Re-fetching raw content from: ${convertedUrl}`);
+        const controller2 = new AbortController();
+        const timeoutId2 = setTimeout(() => controller2.abort(), 3e4);
+        response = await fetch(convertedUrl, {
+          signal: controller2.signal,
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.9,tr;q=0.8",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+          }
+        });
+        clearTimeout(timeoutId2);
+      }
       if (!response.ok) {
         throw new Error(`IPTV provider returned status ${response.status}`);
       }
@@ -77,6 +119,67 @@ async function startServer() {
       });
     }
   });
+  const handleXtreamProxy = async (req, res) => {
+    const params = { ...req.query, ...req.body };
+    const { serverUrl, ...otherParams } = params;
+    if (!serverUrl) {
+      return res.status(400).json({ error: "serverUrl parameter is required" });
+    }
+    let normalizedUrl = serverUrl.trim();
+    if (!normalizedUrl.startsWith("http://") && !normalizedUrl.startsWith("https://")) {
+      normalizedUrl = "http://" + normalizedUrl;
+    }
+    normalizedUrl = normalizedUrl.replace(/\/+$/, "");
+    const queryParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(otherParams)) {
+      if (value !== void 0 && value !== null) {
+        queryParams.set(key, String(value));
+      }
+    }
+    const targetUrl = `${normalizedUrl}/player_api.php?${queryParams.toString()}`;
+    try {
+      console.log(`[Xtream Proxy Tunneled] Forwarding request to: ${targetUrl}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2e4);
+      const response = await fetch(targetUrl, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "application/json, text/plain, */*"
+        }
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) {
+        return res.status(response.status).json({
+          error: `Xtream target server returned HTTP ${response.status}`
+        });
+      }
+      const contentType = response.headers.get("content-type") || "";
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      if (contentType.includes("application/json") || contentType.includes("text/plain") || contentType.includes("text/javascript")) {
+        const text = await response.text();
+        try {
+          const json = JSON.parse(text);
+          return res.json(json);
+        } catch (_) {
+          res.setHeader("Content-Type", contentType || "text/plain");
+          return res.send(text);
+        }
+      } else {
+        const buffer = await response.arrayBuffer();
+        res.setHeader("Content-Type", contentType || "application/octet-stream");
+        return res.send(Buffer.from(buffer));
+      }
+    } catch (err) {
+      console.error(`[Xtream Proxy Tunneled Error]: ${err.message}`);
+      return res.status(502).json({
+        error: "Failed to tunnel request to target Xtream server",
+        details: err.message
+      });
+    }
+  };
+  app.get("/api/xtream/proxy", handleXtreamProxy);
+  app.post("/api/xtream/proxy", handleXtreamProxy);
   app.post("/api/xtream/channels", async (req, res) => {
     const { serverUrl, username, password } = req.body;
     if (!serverUrl || !username || !password) {
