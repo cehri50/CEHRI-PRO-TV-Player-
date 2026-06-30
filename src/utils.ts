@@ -119,9 +119,35 @@ export function formatTime(timestamp: number): string {
 /**
  * Clean up invalid assets or return local cache checks
  */
-export function getCleanLogoUrl(url?: string): string {
+export function getCleanLogoUrl(url?: string, gatewayUrl?: string): string {
   if (!url) return 'https://images.unsplash.com/photo-1542204172-e7052809a8a7?w=128&auto=format&fit=crop&q=60'; // Premium abstract placeholder
-  return url;
+  
+  let gateway = gatewayUrl;
+  if (!gateway && typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem('nexus_iptv_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.gatewayUrl) {
+          gateway = parsed.gatewayUrl;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Convert common sharing URLs (Dropbox, Google Drive, Github) before proxying
+  const convertedUrl = convertSharingUrl(url);
+
+  // If we have a gatewayUrl and it is an external HTTP/HTTPS URL, route it through our secure backend proxy!
+  // This bypasses Android TV Box cleartext blocks (HTTP), SSL certificate validation issues, and CORS.
+  if (gateway && (convertedUrl.startsWith('http://') || convertedUrl.startsWith('https://'))) {
+    // Avoid proxying images that are already on the gateway or unsplash placeholders
+    if (!convertedUrl.includes(gateway) && !convertedUrl.includes('unsplash.com')) {
+      return getApiUrl(`/api/image/proxy?url=${encodeURIComponent(convertedUrl)}`, gateway);
+    }
+  }
+
+  return convertedUrl;
 }
 
 /**

@@ -456,7 +456,7 @@ export default function SettingsView({
             </h3>
             <p id="setting-gateway-desc" className="text-[10px] text-slate-500 mt-1">{t.gatewayDesc}</p>
           </div>
-          <div id="setting-gateway-options" className="md:col-span-2">
+          <div id="setting-gateway-options" className="md:col-span-2 flex flex-col sm:flex-row gap-2.5">
             <input
               id="input-gateway-url"
               type="text"
@@ -465,8 +465,18 @@ export default function SettingsView({
                 onUpdateSettings({ ...settings, gatewayUrl: e.target.value });
               }}
               placeholder="https://your-proxy-domain.com"
-              className="w-full bg-slate-900 border border-slate-850 hover:border-slate-800 focus:border-sky-500 rounded-lg px-3.5 py-2.5 text-xs font-mono text-slate-200 focus:outline-none transition-all duration-200"
+              className="flex-1 bg-slate-900 border border-slate-850 hover:border-slate-800 focus:border-sky-500 rounded-lg px-3.5 py-2.5 text-xs font-mono text-slate-200 focus:outline-none transition-all duration-200"
             />
+            <button
+              id="btn-reset-gateway"
+              onClick={() => {
+                onUpdateSettings({ ...settings, gatewayUrl: 'https://cehri50-iptv-proxy-production.up.railway.app' });
+                triggerSuccess();
+              }}
+              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-sky-400 hover:text-sky-300 rounded-lg text-xs font-semibold border border-slate-850 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-400 cursor-pointer shrink-0"
+            >
+              {language === 'tr' ? 'Varsayılana Sıfırla' : 'Reset to Default'}
+            </button>
           </div>
         </div>
 

@@ -14,7 +14,7 @@ import {
 } from './types';
 import { DEMO_PLAYLIST, DEMO_CHANNELS, DEMO_PLAYLIST_ID } from './demoData';
 import { parseM3U, getApiUrl, convertSharingUrl } from './utils';
-import { RENDER_API_URL } from './config';
+import { RENDER_API_URL, APP_VERSION } from './config';
 import cehriLogo from './assets/images/cehri_logo_1782719992837.jpg';
 import SplashScreen from './components/SplashScreen';
 import NavigationGuide from './components/NavigationGuide';
@@ -63,6 +63,13 @@ export default function App() {
   const [history, setHistory] = useState<IPTVHistoryItem[]>([]);
   const [settings, setSettings] = useState<IPTVAppSettings>(DEFAULT_SETTINGS);
   const [crashLogs, setCrashLogs] = useState<CrashLog[]>([]);
+  const [updateNeededInfo, setUpdateNeededInfo] = useState<{
+    needed: boolean;
+    message: string;
+    updateUrl: string;
+    forceUpdate: boolean;
+    currentVersion: string;
+  } | null>(null);
   
   // Player state
   const [activeChannel, setActiveChannel] = useState<IPTVPlaylistItem | null>(null);
@@ -318,6 +325,53 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Remote version check for automatic / forced updates
+  useEffect(() => {
+    const checkUpdates = async () => {
+      try {
+        const gateway = settings.gatewayUrl || RENDER_API_URL;
+        console.log(`[Update Check] Checking for updates via gateway: ${gateway}`);
+        
+        const res = await fetch(getApiUrl('/api/version', gateway));
+        if (res.ok) {
+          const data = await res.json();
+          const clientVer = APP_VERSION;
+          const serverMinVer = data.minRequiredVersion;
+          
+          const isOlder = (client: string, required: string) => {
+            const cParts = client.split('.').map(Number);
+            const rParts = required.split('.').map(Number);
+            for (let i = 0; i < Math.max(cParts.length, rParts.length); i++) {
+              const c = cParts[i] || 0;
+              const r = rParts[i] || 0;
+              if (c < r) return true;
+              if (c > r) return false;
+            }
+            return false;
+          };
+
+          if (isOlder(clientVer, serverMinVer)) {
+            console.log(`[Update Check] Version mismatch detected. Local: ${clientVer}, Min Required: ${serverMinVer}`);
+            setUpdateNeededInfo({
+              needed: true,
+              message: settings.language === 'tr' ? data.messageTr : data.messageEn,
+              updateUrl: data.updateUrl,
+              forceUpdate: !!data.forceUpdate,
+              currentVersion: data.currentVersion
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Update check failed:', err);
+      }
+    };
+    
+    // Check after settings load
+    if (settings.gatewayUrl) {
+      checkUpdates();
+    }
+  }, [settings.gatewayUrl, settings.language]);
+
   // Hydrate from LocalStorage
   useEffect(() => {
     try {
@@ -346,7 +400,7 @@ export default function App() {
 
           const hasStaleDevUrl = parsed.gatewayUrl && parsed.gatewayUrl.includes('run.app') && !window.location.hostname.includes('europe-west1.run.app');
 
-          if (!parsed.gatewayUrl || hasStaleDevUrl) {
+          if (isNativeTVBox || !parsed.gatewayUrl || hasStaleDevUrl) {
             parsed.gatewayUrl = RENDER_API_URL;
             try {
               localStorage.setItem(LOCAL_STORAGE_SETTINGS, JSON.stringify(parsed));
@@ -802,6 +856,70 @@ export default function App() {
               ? 'M3U / M3U8 dosyasını veya IPTV bağlantı adresini ekranın herhangi bir yerine bırakarak anında yükleyebilirsiniz.' 
               : 'You can drop M3U / M3U8 files or any IPTV connection URL anywhere on the screen to import instantly.'}
           </p>
+        </div>
+      )}
+
+      {/* FORCE UPDATE OVERLAY */}
+      {updateNeededInfo && updateNeededInfo.needed && (
+        <div 
+          id="force-update-overlay"
+          className="fixed inset-0 bg-slate-950/98 backdrop-blur-xl z-[100] flex flex-col items-center justify-center p-6 text-white font-sans text-center animate-fadeIn"
+        >
+          {/* Decorative glowing gradient behind */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-sky-500/10 rounded-full blur-[150px] pointer-events-none" />
+          
+          <div className="max-w-xl bg-slate-900/40 border border-slate-800/80 p-8.5 rounded-3xl shadow-2xl relative overflow-hidden backdrop-blur-md">
+            {/* Top header */}
+            <div className="w-16 h-16 bg-sky-500/10 rounded-full border border-sky-500/20 text-sky-400 flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <ShieldAlert className="w-8 h-8" />
+            </div>
+
+            <h2 className="text-2xl font-bold tracking-wide mb-3">
+              {settings.language === 'tr' ? 'Yeni Sürüm Mevcut!' : 'New Update Available!'}
+            </h2>
+            <p className="text-slate-400 text-xs leading-relaxed mb-6">
+              {updateNeededInfo.message}
+            </p>
+
+            <div className="grid grid-cols-2 gap-4 bg-slate-950/60 p-4 rounded-2xl border border-slate-850/60 mb-6 text-left">
+              <div>
+                <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-semibold">
+                  {settings.language === 'tr' ? 'Mevcut Sürüm' : 'Current Version'}
+                </span>
+                <span className="text-sm font-mono font-bold text-slate-300">
+                  v{APP_VERSION}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-semibold">
+                  {settings.language === 'tr' ? 'En Güncel Sürüm' : 'Latest Version'}
+                </span>
+                <span className="text-sm font-mono font-bold text-sky-400">
+                  v{updateNeededInfo.currentVersion}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <a 
+                href={updateNeededInfo.updateUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-full py-3.5 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-sky-500/10 hover:shadow-sky-500/20 transition-all duration-200 text-center"
+              >
+                {settings.language === 'tr' ? 'GÜNCELLEMEYİ İNDİR (.APK)' : 'DOWNLOAD UPDATE (.APK)'}
+              </a>
+              
+              {!updateNeededInfo.forceUpdate && (
+                <button
+                  onClick={() => setUpdateNeededInfo(null)}
+                  className="w-full py-3.5 bg-slate-950 hover:bg-slate-900 text-slate-400 hover:text-slate-200 font-semibold text-xs rounded-xl border border-slate-850 transition-all duration-200"
+                >
+                  {settings.language === 'tr' ? 'Daha Sonra Hatırlat' : 'Remind Me Later'}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

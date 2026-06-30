@@ -43,6 +43,18 @@ async function startServer() {
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: Date.now() });
   });
+  app.get("/api/version", (req, res) => {
+    res.json({
+      currentVersion: "1.0.5",
+      minRequiredVersion: "1.0.5",
+      updateUrl: "https://cehri50-iptv-proxy-production.up.railway.app",
+      // Can be set to APK download link or forum post
+      messageTr: "Cehri50 IPTV Player i\xE7in yeni bir g\xFCncelleme mevcut! L\xFCtfen en iyi performans, yeni \xF6zellikler ve kanal y\xFCkleme d\xFCzeltmeleri i\xE7in uygulamay\u0131 g\xFCncelleyin.",
+      messageEn: "A new update is available for Cehri50 IPTV Player! Please update for optimal performance, new features, and channel loading fixes.",
+      forceUpdate: true
+      // If set to true, it blocks access on older versions
+    });
+  });
   function convertSharingUrl(urlStr) {
     let normalized = urlStr.trim();
     const fileDMatch = normalized.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
@@ -180,6 +192,38 @@ async function startServer() {
   };
   app.get("/api/xtream/proxy", handleXtreamProxy);
   app.post("/api/xtream/proxy", handleXtreamProxy);
+  app.get("/api/image/proxy", async (req, res) => {
+    let imageUrl = req.query.url;
+    if (!imageUrl) {
+      return res.status(400).json({ error: "URL parameter is required" });
+    }
+    imageUrl = convertSharingUrl(imageUrl);
+    try {
+      console.log(`[Image Proxy] Fetching logo from: ${imageUrl}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1e4);
+      const response = await fetch(imageUrl, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "image/*"
+        }
+      });
+      clearTimeout(timeoutId);
+      const contentType = response.headers.get("content-type");
+      if (contentType) {
+        res.setHeader("Content-Type", contentType);
+      } else {
+        res.setHeader("Content-Type", "image/png");
+      }
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      const arrayBuffer = await response.arrayBuffer();
+      return res.send(Buffer.from(arrayBuffer));
+    } catch (err) {
+      console.error(`[Image Proxy Error] Failed to load image: ${imageUrl}. Error: ${err.message}`);
+      return res.redirect("https://images.unsplash.com/photo-1542204172-e7052809a8a7?w=128&auto=format&fit=crop&q=60");
+    }
+  });
   app.post("/api/xtream/channels", async (req, res) => {
     const { serverUrl, username, password } = req.body;
     if (!serverUrl || !username || !password) {

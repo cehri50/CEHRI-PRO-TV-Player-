@@ -37,6 +37,18 @@ async function startServer() {
     res.json({ status: 'ok', timestamp: Date.now() });
   });
 
+  // API Versioning and Force-Update Config
+  app.get('/api/version', (req, res) => {
+    res.json({ 
+      currentVersion: '1.0.5', 
+      minRequiredVersion: '1.0.5',
+      updateUrl: 'https://cehri50-iptv-proxy-production.up.railway.app', // Can be set to APK download link or forum post
+      messageTr: 'Cehri50 IPTV Player için yeni bir güncelleme mevcut! Lütfen en iyi performans, yeni özellikler ve kanal yükleme düzeltmeleri için uygulamayı güncelleyin.',
+      messageEn: 'A new update is available for Cehri50 IPTV Player! Please update for optimal performance, new features, and channel loading fixes.',
+      forceUpdate: true // If set to true, it blocks access on older versions
+    });
+  });
+
   // Helper to convert sharing links (Google Drive, Dropbox, GitHub) to direct raw URLs
   function convertSharingUrl(urlStr: string): string {
     let normalized = urlStr.trim();
@@ -214,6 +226,49 @@ async function startServer() {
 
   app.get('/api/xtream/proxy', handleXtreamProxy);
   app.post('/api/xtream/proxy', handleXtreamProxy);
+
+  // CORS-Bypass and SSL-Bypass Proxy for TV Channel Logos & Images
+  app.get('/api/image/proxy', async (req, res) => {
+    let imageUrl = req.query.url as string;
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'URL parameter is required' });
+    }
+
+    // Convert sharing URLs if needed
+    imageUrl = convertSharingUrl(imageUrl);
+
+    try {
+      console.log(`[Image Proxy] Fetching logo from: ${imageUrl}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout for images
+
+      const response = await fetch(imageUrl, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'image/*',
+        }
+      });
+      clearTimeout(timeoutId);
+
+      const contentType = response.headers.get('content-type');
+      if (contentType) {
+        res.setHeader('Content-Type', contentType);
+      } else {
+        res.setHeader('Content-Type', 'image/png'); // Fallback
+      }
+
+      // Add long caching for images to speed up TV Box performance!
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // 24 hours caching
+
+      const arrayBuffer = await response.arrayBuffer();
+      return res.send(Buffer.from(arrayBuffer));
+    } catch (err: any) {
+      console.error(`[Image Proxy Error] Failed to load image: ${imageUrl}. Error: ${err.message}`);
+      // Send a high-quality fallback image or redirect to prevent UI breakdown
+      return res.redirect('https://images.unsplash.com/photo-1542204172-e7052809a8a7?w=128&auto=format&fit=crop&q=60');
+    }
+  });
 
   // CORS-Bypass Proxy for Xtream Codes API Authentication and Channel Retrieval
   app.post('/api/xtream/channels', async (req, res) => {
