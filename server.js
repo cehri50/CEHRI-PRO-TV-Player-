@@ -2,18 +2,23 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
-app.use(cors());
 
-const PORT = process.env.PORT || 3000;
+// Tüm kaynaklara ve protokollere izin ver usta (TV Box ve Tarayıcı için)
+app.use(cors({ origin: '*' }));
 
-// Tüm olası yolları tek seferde yakalayan rota tanımları
-app.get(['/', '/railway-deploy'], (req, res) => {
-  res.send('Cehri50 IPTV Proxy Sunucusu Aktif ve Kanallar Hazır!');
+// Railway projenin ayağa kalktığını anlamak için bu PORT değerini dinamik okumak zorunda
+const PORT = process.env.PORT || 8080;
+
+// Ana dizin rotası
+app.get('/', (req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send('<h1>Cehri50 IPTV Proxy Sunucusu Aktif ve Kanallar Hazır!</h1>');
 });
 
-app.get(['/api/epg', '/railway-deploy/api/epg'], (req, res) => {
+// TV Box M3U Rotası
+app.get('/api/epg', (req, res) => {
   try {
-    const m3uIcerik = `#EXTM3U x-tvg-url="https://www.open-epg.com/files/turkey3.xml" url-tvg="https://streams.uzunmuhalefet.com/epg/tr.xml" | SON GÜNCELLENME 25.06.2026
+    const m3uIcerik = `#EXTM3U x-tvg-url="https://www.open-epg.com/files/turkey3.xml" url-tvg="https://streams.uzunmuhalefet.com/epg/tr.xml" | SON GÜNCELLENME 30.06.2026
 #EXTINF:3702,TRT1
 https://tv-trt1.medya.trt.com.tr/master.m3u8
 #EXTINF:-1 tvg-id="STAR TV.tr" tvg-logo="https://raw.githubusercontent.com/tv-logo/tv-logos/refs/heads/main/countries/turkey/star-tv-tr.png" group-title="Ulusal", STAR TV HD
@@ -25,12 +30,12 @@ https://demiroren.daioncdn.net/kanald/kanald.m3u8?app=kanald_web&ce=3`;
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.send(m3uIcerik);
-
   } catch (error) {
     res.status(500).send("#EXTM3U\n#EXTINF:-1,Sunucu Hatası: " + error.message);
   }
 });
 
+// Railway için 0.0.0.0 IP'sinde dinleme yapmak kritik önem taşır usta
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Sunucu ${PORT} portunda aktif.`);
+  console.log(`Sunucu ${PORT} portunda dinlemede.`);
 });
