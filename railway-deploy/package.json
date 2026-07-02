@@ -1,13 +1,16 @@
 {
   "name": "cehri50-iptv-proxy",
   "version": "1.0.0",
-  "description": "Cehri50 IPTV Proxy Sunucusu",
+  "description": "Cehri50 IPTV Player - CORS & Mixed Content Bypass Gateway Proxy for Railway",
   "main": "server.cjs",
   "scripts": {
     "start": "node server.cjs"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "cors": "^2.8.5"
-  }
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "private": true
 }

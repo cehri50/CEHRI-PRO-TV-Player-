@@ -13,7 +13,7 @@ import {
   IPTVPlaylistItem, IPTVPlaylist, IPTVHistoryItem, IPTVAppSettings, IPTVTheme, CrashLog 
 } from './types';
 import { DEMO_PLAYLIST, DEMO_CHANNELS, DEMO_PLAYLIST_ID } from './demoData';
-import { parseM3U, getApiUrl, convertSharingUrl } from './utils';
+import { parseM3U, getApiUrl, convertSharingUrl, isLocalUrl } from './utils';
 import { RENDER_API_URL, APP_VERSION } from './config';
 import cehriLogo from './assets/images/cehri_logo_1782719992837.jpg';
 import SplashScreen from './components/SplashScreen';
@@ -195,24 +195,48 @@ export default function App() {
     showToast('loading', settings.language === 'tr' ? 'Oynatma listesi indiriliyor...' : 'Downloading playlist...');
 
     try {
-      const proxyUrl = getApiUrl(`/api/m3u/proxy?url=${encodeURIComponent(normalizedUrl)}`, settings.gatewayUrl);
       let response;
       let text = '';
-      
-      try {
-        response = await fetch(proxyUrl);
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `Server status ${response.status}`);
+
+      if (isLocalUrl(normalizedUrl)) {
+        console.log('[App] Local URL detected, attempting direct browser fetch:', normalizedUrl);
+        try {
+          response = await fetch(normalizedUrl);
+          if (!response.ok) {
+            throw new Error(`Status ${response.status}`);
+          }
+          text = await response.text();
+        } catch (localErr: any) {
+          console.warn('[App] Direct local fetch failed:', localErr);
+          throw new Error(
+            settings.language === 'tr'
+              ? `Yerel ağ adresine (${normalizedUrl}) doğrudan erişilemedi.\n\n` +
+                `💡 Çözüm Yolları:\n` +
+                `1. Bu adresi tarayıcınızda yeni sekmede açıp içeriğini kopyalayarak, 'Yerel M3U Dosyası' sekmesinden metin olarak veya sürükle-bırak yöntemiyle yükleyebilirsiniz.\n` +
+                `2. Pardus sunucunuzu internete açmak için Ngrok veya LocalTunnel kullanıp, size verilen güvenli HTTPS adresini buraya ekleyebilirsiniz.`
+              : `Could not connect to local network address (${normalizedUrl}) directly from browser.\n\n` +
+                `💡 Solutions:\n` +
+                `1. Open this address in a new tab, copy its contents, and upload/paste them under the 'Local M3U File' tab.\n` +
+                `2. Use a tunnel tool like Ngrok or LocalTunnel on your Pardus server to get a secure HTTPS link.`
+          );
         }
-        text = await response.text();
-      } catch (proxyErr: any) {
-        console.warn('Proxy fetch failed on App.tsx, attempting direct browser fetch:', proxyErr);
-        response = await fetch(normalizedUrl);
-        if (!response.ok) {
-          throw new Error(`Direct fetch status ${response.status} (Proxy error: ${proxyErr.message})`);
+      } else {
+        const proxyUrl = getApiUrl(`/api/m3u/proxy?url=${encodeURIComponent(normalizedUrl)}`, settings.gatewayUrl);
+        try {
+          response = await fetch(proxyUrl);
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Server status ${response.status}`);
+          }
+          text = await response.text();
+        } catch (proxyErr: any) {
+          console.warn('Proxy fetch failed on App.tsx, attempting direct browser fetch:', proxyErr);
+          response = await fetch(normalizedUrl);
+          if (!response.ok) {
+            throw new Error(`Direct fetch status ${response.status} (Proxy error: ${proxyErr.message})`);
+          }
+          text = await response.text();
         }
-        text = await response.text();
       }
 
       const playlistId = `m3u-${Date.now()}`;
@@ -235,7 +259,7 @@ export default function App() {
       handleAddPlaylist(newPlaylist, parsedChannels);
       showToast('success', settings.language === 'tr' ? `Başarıyla indirildi: ${playlistName} (${parsedChannels.length} kanal)` : `Successfully downloaded: ${playlistName} (${parsedChannels.length} channels)`);
     } catch (err: any) {
-      showToast('error', settings.language === 'tr' ? `Yüklenemedi: ${err.message}` : `Load failed: ${err.message}`);
+      showToast('error', settings.language === 'tr' ? `Yüklenemedi:\n${err.message}` : `Load failed:\n${err.message}`);
     }
   };
 
@@ -927,20 +951,20 @@ export default function App() {
       {toast && (
         <div 
           id="global-toast-message"
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-900/90 border border-slate-800/80 backdrop-blur-md px-4.5 py-3.5 rounded-2xl shadow-2xl animate-slideIn max-w-sm text-white"
+          className="fixed bottom-6 right-6 z-50 flex items-start gap-3 bg-slate-900/95 border border-slate-800/80 backdrop-blur-md px-5 py-4 rounded-2xl shadow-2xl animate-slideIn max-w-md text-white transition-all duration-350"
         >
           {toast.type === 'loading' && (
-            <div className="w-5 h-5 text-sky-400 animate-spin flex items-center justify-center">
+            <div className="w-5 h-5 text-sky-400 animate-spin flex items-center justify-center shrink-0 mt-0.5">
               <Clock className="w-4 h-4" />
             </div>
           )}
           {toast.type === 'success' && (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
           )}
           {toast.type === 'error' && (
-            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+            <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
           )}
-          <div className="text-xs font-medium leading-relaxed">
+          <div className="text-xs font-medium leading-relaxed whitespace-pre-line">
             {toast.message}
           </div>
         </div>

@@ -11,6 +11,7 @@ import {
 import { IPTVPlaylist, PlaylistType, IPTVAppSettings } from '../types';
 import { parseM3U, getApiUrl, convertSharingUrl } from '../utils';
 import { DEMO_PLAYLIST_ID } from '../demoData';
+import { GOOGLE_DRIVE_FILE_ID } from '../config';
 
 interface PlaylistManagerProps {
   playlists: IPTVPlaylist[];
@@ -47,8 +48,8 @@ export default function PlaylistManager({
   }, [onExitToHeader]);
   
   // Form States
-  const [playlistName, setPlaylistName] = useState('');
-  const [m3uUrl, setM3uUrl] = useState('');
+  const [playlistName, setPlaylistName] = useState('Pardus IPTV');
+  const [m3uUrl, setM3uUrl] = useState('http://192.168.1.116:8081/api/epg');
   const [serverUrl, setServerUrl] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -136,9 +137,12 @@ export default function PlaylistManager({
   }, [errorMsg, successMsg]);
 
   // Handle M3U URL addition
-  const handleAddM3uUrl = async (e: React.FormEvent) => {
-    e.preventDefault();
-    let normalizedUrl = m3uUrl.trim();
+  const handleAddM3uUrl = async (e?: React.FormEvent, overrideUrl?: string, overrideName?: string) => {
+    if (e) e.preventDefault();
+    const urlToUse = overrideUrl || m3uUrl;
+    const nameToUse = overrideName || playlistName;
+    
+    let normalizedUrl = urlToUse.trim();
     if (!normalizedUrl) {
       setErrorMsg(t.emptyError);
       return;
@@ -156,7 +160,7 @@ export default function PlaylistManager({
     setErrorMsg(null);
 
     // Auto-extract playlist name if empty
-    let finalPlaylistName = playlistName.trim();
+    let finalPlaylistName = nameToUse.trim();
     if (!finalPlaylistName) {
       try {
         const urlObj = new URL(normalizedUrl);
@@ -479,6 +483,73 @@ export default function PlaylistManager({
               </button>
             )}
           </div>
+
+          {/* Quick Pardus IPTV Setup Box */}
+          <div id="quick-pardus-box" className="mt-4 p-4 rounded-xl bg-sky-500/10 border border-sky-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-sky-500/20 text-sky-400 rounded-lg shrink-0 mt-0.5">
+                <Database className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-sky-300">Pardus Yerel Sunucu Bağlantısı</h4>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Yerel Pardus sunucunuzdaki <code className="text-sky-400 font-mono text-[11px] bg-slate-950 px-1.5 py-0.5 rounded">http://192.168.1.116:8081/api/epg</code> adresinden oynatma listesini tek tıkla yükleyin.
+                </p>
+              </div>
+            </div>
+            <button
+              id="btn-quick-pardus-load"
+              type="button"
+              disabled={isProcessing}
+              onClick={() => {
+                setPlaylistName('Pardus IPTV');
+                setM3uUrl('http://192.168.1.116:8081/api/epg');
+                // Automatically trigger the add action after state is updated
+                setTimeout(() => {
+                  const submitBtn = document.getElementById('btn-submit-m3u');
+                  if (submitBtn) {
+                    submitBtn.click();
+                  }
+                }, 100);
+              }}
+              className="px-4 py-2 bg-gradient-to-r from-sky-500 to-sky-400 text-slate-950 font-bold rounded-xl text-xs tracking-wide shadow-md shadow-sky-500/10 hover:from-sky-400 hover:to-sky-300 transition-all cursor-pointer whitespace-nowrap focus:ring-2 focus:ring-sky-300 focus:outline-none focus:scale-105 active:scale-95 disabled:opacity-50"
+            >
+              {isProcessing ? 'Yükleniyor...' : 'Tek Tıkla Kur'}
+            </button>
+          </div>
+
+          {/* Quick Google Drive IPTV Setup Box */}
+          <div id="quick-gdrive-box" className="mt-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg shrink-0 mt-0.5">
+                <UploadCloud className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-amber-300">Google Drive Oynatma Listesi</h4>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Kayıtlı <code className="text-amber-400 font-mono text-[11px] bg-slate-950 px-1.5 py-0.5 rounded">1wLUYl1...Ac</code> Google Drive dosyasından oynatma listenizi tek tıkla yükleyin.
+                </p>
+              </div>
+            </div>
+            <button
+              id="btn-quick-gdrive-load"
+              type="button"
+              disabled={isProcessing}
+              onClick={() => {
+                setActiveTab('m3u-url');
+                setPlaylistName('Google Drive IPTV');
+                const targetUrl = 'https://docs.google.com/uc?export=download&id=' + GOOGLE_DRIVE_FILE_ID;
+                setM3uUrl(targetUrl);
+                
+                // Directly trigger the download using overrides to prevent race conditions
+                handleAddM3uUrl(undefined, targetUrl, 'Google Drive IPTV');
+              }}
+              className="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold rounded-xl text-xs tracking-wide shadow-md shadow-amber-500/10 hover:from-amber-400 hover:to-amber-300 transition-all cursor-pointer whitespace-nowrap focus:ring-2 focus:ring-amber-300 focus:outline-none focus:scale-105 active:scale-95 disabled:opacity-50"
+            >
+              {isProcessing ? 'Yükleniyor...' : 'Tek Tıkla Kur'}
+            </button>
+          </div>
+
 
           {/* Form tab selector */}
           <div id="playlist-tabs" className="flex bg-slate-950/80 p-1.5 rounded-xl border border-slate-800/60 my-6">

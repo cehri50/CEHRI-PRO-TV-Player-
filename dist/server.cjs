@@ -120,10 +120,13 @@ async function startServer() {
         throw new Error(`IPTV provider returned status ${response.status}`);
       }
       let content = await response.text();
-      const isHtml = content.trim().startsWith("<") || content.includes("<html") || (response.headers.get("content-type") || "").includes("text/html");
+      let isHtml = content.trim().startsWith("<") || content.includes("<html") || (response.headers.get("content-type") || "").includes("text/html");
       const isGoogleDrive = m3uUrl.includes("google.com") || response.url && response.url.includes("google.com");
       if (isHtml && isGoogleDrive) {
-        const confirmMatch = content.match(/confirm=([a-zA-Z0-9_-]+)/i);
+        if (content.includes("accounts.google.com") || content.includes("signin") || content.includes("ServiceLogin")) {
+          throw new Error('Google Drive dosyan\u0131z "K\u0131s\u0131tl\u0131" (\xD6zel) durumdad\u0131r. L\xFCtfen Google Drive \xFCzerinden payla\u015F\u0131m ayar\u0131n\u0131 "Ba\u011Flant\u0131ya sahip olan herkes g\xF6r\xFCnt\xFCleyebilir" olarak de\u011Fi\u015Ftirin.');
+        }
+        const confirmMatch = content.match(/confirm=([^&"'\s<>]+)/i);
         const idMatch = m3uUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/) || m3uUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || response.url && (response.url.match(/[?&]id=([a-zA-Z0-9_-]+)/) || response.url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/));
         const fileId = idMatch ? idMatch[1] : null;
         if (confirmMatch && fileId) {
@@ -144,9 +147,23 @@ async function startServer() {
           if (gdResponse.ok) {
             content = await gdResponse.text();
             console.log(`[Proxy] Google Drive file content successfully fetched after passing warning page.`);
+            isHtml = content.trim().startsWith("<") || content.includes("<html") || (gdResponse.headers.get("content-type") || "").includes("text/html");
           } else {
             console.warn(`[Proxy] Failed to fetch Google Drive file content after passing warning. Status: ${gdResponse.status}`);
           }
+        }
+      }
+      if (isHtml) {
+        if (isGoogleDrive) {
+          if (content.includes("not found") || content.includes("Bulunamad\u0131") || content.includes("g\xF6r\xFCn\xFC\u015Fe g\xF6re bu dosya yok") || content.includes("g\xF6r\xFCnm\xFCyor") || content.includes("Bulunam\u0131yor") || content.includes("Bulunamad\u0131")) {
+            throw new Error("Google Drive dosyas\u0131 bulunamad\u0131! L\xFCtfen dosya ID'sinin do\u011Fru oldu\u011Fundan ve dosyan\u0131n silinmedi\u011Finden emin olun.");
+          }
+          if (content.includes("denied") || content.includes("yetkiniz yok") || content.includes("eri\u015Fim") || content.includes("access") || content.includes("accounts.google.com") || content.includes("ServiceLogin") || content.includes("signin")) {
+            throw new Error('Google Drive dosyan\u0131z "K\u0131s\u0131tl\u0131" (\xD6zel) veya korumal\u0131 durumdad\u0131r. L\xFCtfen Google Drive \xFCzerinden payla\u015F\u0131m ayar\u0131n\u0131 "Ba\u011Flant\u0131ya sahip olan herkes g\xF6r\xFCnt\xFCleyebilir" olarak de\u011Fi\u015Ftirin.');
+          }
+          throw new Error("Google Drive ge\xE7erli bir M3U dosyas\u0131 yerine bir HTML web sayfas\u0131 d\xF6nd\xFCrd\xFC. L\xFCtfen dosyan\u0131n herkese a\xE7\u0131k payla\u015F\u0131ld\u0131\u011F\u0131ndan emin olun.");
+        } else {
+          throw new Error("Sa\u011Flay\u0131c\u0131 M3U dosyas\u0131 yerine bir HTML web sayfas\u0131 d\xF6nd\xFCrd\xFC. Girdi\u011Finiz URL do\u011Frudan canl\u0131 liste indirme ba\u011Flant\u0131s\u0131 olmal\u0131d\u0131r, bir web sitesi veya portal adresi de\u011Fil.");
         }
       }
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
@@ -155,7 +172,7 @@ async function startServer() {
     } catch (err) {
       console.error(`[Proxy Error] Failed to fetch M3U: ${err.message}`);
       res.status(502).json({
-        error: "M3U playlist could not be retrieved from provider.",
+        error: err.message,
         details: err.message
       });
     }

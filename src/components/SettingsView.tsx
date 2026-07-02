@@ -6,7 +6,7 @@
 import React from 'react';
 import { 
   Settings, Languages, Palette, Disc, Shield, Trash2, CheckCircle2,
-  Cpu, Keyboard, ArrowRight, Tv, HelpCircle, HardDrive
+  Cpu, Keyboard, ArrowRight, Tv, HelpCircle, HardDrive, Zap, History, Globe, Sliders, Bookmark, X
 } from 'lucide-react';
 import { IPTVAppSettings, IPTVTheme, IPTVBufferSize, IPTVLanguage } from '../types';
 
@@ -34,17 +34,22 @@ export default function SettingsView({
   onExitToHeader
 }: SettingsViewProps) {
   const [successNotif, setSuccessNotif] = React.useState<string | null>(null);
+  const [showFeatures, setShowFeatures] = React.useState(false);
 
   React.useEffect(() => {
     const handleLocalBack = (e: KeyboardEvent) => {
       if (e.key === 'Backspace' || e.key === 'Escape') {
         e.preventDefault();
-        onExitToHeader?.();
+        if (showFeatures) {
+          setShowFeatures(false);
+        } else {
+          onExitToHeader?.();
+        }
       }
     };
     window.addEventListener('keydown', handleLocalBack);
     return () => window.removeEventListener('keydown', handleLocalBack);
-  }, [onExitToHeader]);
+  }, [onExitToHeader, showFeatures]);
 
   const t = {
     tr: {
@@ -602,6 +607,16 @@ export default function SettingsView({
               <span>HLS.js v1.4.0 Engine active.</span>
             </div>
           </div>
+          
+          <button
+            id="btn-show-features-showcase"
+            tabIndex={0}
+            onClick={() => setShowFeatures(true)}
+            className="w-full mt-2 py-2.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow-lg hover:shadow-amber-500/20 transition-all border border-amber-300/20 flex items-center justify-center gap-2 cursor-pointer focus:ring-2 focus:ring-amber-400 focus:outline-none focus:scale-105 active:scale-95"
+          >
+            <HelpCircle className="w-4 h-4 text-slate-950 shrink-0" />
+            <span>{language === 'tr' ? 'OYNATICI ÖZELLİKLERİNİ GÖSTER' : 'SHOW PLAYER FEATURES'}</span>
+          </button>
         </div>
 
         {/* Shortcuts keymap visual panel */}
@@ -681,6 +696,120 @@ export default function SettingsView({
         </div>
 
       </div>
+
+      {/* FULL DETAILED FEATURES MODAL SHOWCASE */}
+      {showFeatures && (
+        <div id="features-modal-backdrop" className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div id="features-modal-content" className="bg-slate-900 border border-slate-850 rounded-2xl max-w-4xl w-full p-6 text-white shadow-2xl relative max-h-[90vh] overflow-y-auto flex flex-col space-y-4">
+            
+            <button
+              id="btn-close-features-modal"
+              onClick={() => setShowFeatures(false)}
+              className="absolute top-4 right-4 bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-amber-400/50 text-slate-400 hover:text-white p-2 rounded-xl transition-all cursor-pointer focus:ring-2 focus:ring-amber-400 focus:outline-none"
+              title={language === 'tr' ? 'Kapat' : 'Close'}
+            >
+              <X className="w-5 h-5 text-amber-400" />
+            </button>
+
+            <div id="features-modal-header" className="border-b border-slate-800 pb-3 flex items-center gap-3">
+              <div className="p-2.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl">
+                <HelpCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold tracking-wide text-amber-400">
+                  {language === 'tr' ? 'Nexus IPTV Özel Yetenekleri & Özellikleri' : 'Nexus IPTV Core Features & Capabilities'}
+                </h2>
+                <p className="text-xs text-slate-400">
+                  {language === 'tr' ? 'Büyük ekran televizyon ve TV Box cihazınız için optimize edilmiş tüm özellikler' : 'All special features optimized for smart TVs, Firesticks and Android TV Boxes'}
+                </p>
+              </div>
+            </div>
+
+            <div id="features-modal-grid" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                {
+                  icon: <Tv className="w-5 h-5 text-amber-400" />,
+                  title: language === 'tr' ? 'Google TV & TV Box Uyumlu' : 'Google TV & TV Box Friendly',
+                  desc: language === 'tr' 
+                    ? 'Tamamen kumanda (D-pad) uyumludur. Dokunma veya mouse imleci gerektirmeden yön tuşlarıyla tüm sekmeleri ve kanalları kontrol edebilirsiniz.'
+                    : '100% remote control (D-pad) compatible. Zero touch or mouse required—navigate all tabs, menus, and playlists smoothly with arrows.'
+                },
+                {
+                  icon: <Cpu className="w-5 h-5 text-emerald-400" />,
+                  title: language === 'tr' ? 'Donanımsal Hızlandırma (HW)' : 'Hardware Acceleration',
+                  desc: language === 'tr'
+                    ? 'Cihaz işlemcisini (GPU) ve ExoPlayer kod çözücü motorunu kullanarak 4K, Full HD canlı yayınları takılma ve ısınma olmadan akıcı oynatır.'
+                    : 'Leverages hardware GPU decoding alongside ExoPlayer core to deliver smooth, stutter-free playback of 4K and Full HD streams.'
+                },
+                {
+                  icon: <Globe className="w-5 h-5 text-sky-400" />,
+                  title: language === 'tr' ? 'CORS Ağ Geçidi (Stream Proxy)' : 'CORS Bypass Gateway',
+                  desc: language === 'tr'
+                    ? 'Tarayıcıların ve TV WebView altyapılarının katı CORS/Mixed-Content engellerini aşmak için yayınlarınızı özel proxy üzerinden tüneller.'
+                    : 'Bypasses rigid browser and TV WebView CORS security policies by dynamically proxying stream chunks (.ts, .m3u8, HTTP) in real-time.'
+                },
+                {
+                  icon: <HardDrive className="w-5 h-5 text-indigo-400" />,
+                  title: language === 'tr' ? 'Onay Sınırsız Google Drive' : 'Google Drive Warning Bypass',
+                  desc: language === 'tr'
+                    ? 'Google Drive üzerinden IPTV listesi yüklerken karşılaşılan "büyük dosya virüs taraması" onay uyarılarını otomatik aşarak listenizi indirir.'
+                    : 'Directly fetches and streams large M3U playlist files hosted on Google Drive, bypasses virus check confirmation steps transparently.'
+                },
+                {
+                  icon: <Zap className="w-5 h-5 text-yellow-400" />,
+                  title: language === 'tr' ? 'Yıldırım Kanal Geçişi (Zapping)' : 'Instant Stream Zapping',
+                  desc: language === 'tr'
+                    ? 'Canlı yayın izleme modunda kumandadan YUKARI/AŞAĞI tuşlarına basarak kanallar arasında anında geçiş yapabilir, SAĞ/SOL tuşlarıyla sesi açıp kısabilirsiniz.'
+                    : 'Zap streams swiftly using D-Pad UP/DOWN keys during playback without closing the player. Adjust audio volume with D-Pad LEFT/RIGHT.'
+                },
+                {
+                  icon: <Sliders className="w-5 h-5 text-teal-400" />,
+                  title: language === 'tr' ? 'İnteraktif TV Rehberi (EPG)' : 'Interactive EPG Guide',
+                  desc: language === 'tr'
+                    ? 'Yayın akışı kılavuzu (EPG) ile kanalların günlük programlarını saatlik zaman tünelinde inceleyebilir, yayın akışından doğrudan kanala gidebilirsiniz.'
+                    : 'View current and upcoming schedules via the horizontal TV Guide timeline. Simply select a show card to jump directly to its channel.'
+                },
+                {
+                  icon: <Palette className="w-5 h-5 text-rose-400" />,
+                  title: language === 'tr' ? 'Kişiselleştirilmiş 4 Premium Tema' : '4 Gorgeous Premium Themes',
+                  desc: language === 'tr'
+                    ? 'Televizyon ekranınıza en iyi uyan renk şemasını seçin: Kraliyet Altını, Tivimate Teal, Netflix Kırmızı veya Klasik Siyah arasından dilediğinizi kullanın.'
+                    : 'Select the color profile that fits your environment: Royal Golden, Tivimate Teal, Netflix Red, or Classic Slate interfaces.'
+                },
+                {
+                  icon: <Shield className="w-5 h-5 text-blue-400" />,
+                  title: language === 'tr' ? 'Gelişmiş Teşhis & Hata Terminali' : 'Diagnostic Terminal Logs',
+                  desc: language === 'tr'
+                    ? 'Uygulama arka planında oynatıcı motorunun ürettiği hata kodlarını, çözücü istisnalarını ve ağ kopmalarını anlık raporlayan teknik terminal.'
+                    : 'An embedded diagnostic console logging real-time media exceptions, network socket drops, and stream handshake errors.'
+                }
+              ].map((feat, index) => (
+                <div id={`feature-modal-item-${index}`} key={index} className="flex gap-3 p-3 bg-slate-950/50 rounded-xl border border-slate-800 hover:border-amber-500/20 transition-all">
+                  <div className="shrink-0 p-2 bg-slate-900 rounded-lg h-fit border border-slate-800">
+                    {feat.icon}
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-slate-200">{feat.title}</h4>
+                    <p className="text-[10px] text-slate-400 leading-relaxed">{feat.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div id="features-modal-footer" className="border-t border-slate-800 pt-3 flex justify-end">
+              <button
+                id="btn-close-features-modal-footer"
+                tabIndex={0}
+                onClick={() => setShowFeatures(false)}
+                className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-all cursor-pointer focus:ring-2 focus:ring-amber-300 focus:outline-none"
+              >
+                {language === 'tr' ? 'Kılavuzu Kapat (GERİ)' : 'Close Guide (BACK)'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

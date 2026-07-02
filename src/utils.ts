@@ -242,3 +242,41 @@ export function convertSharingUrl(url: string): string {
   return normalized;
 }
 
+/**
+ * Detects if a URL hostname is a local network/private IP or loopback address
+ */
+export function isLocalUrl(url: string): boolean {
+  try {
+    const cleaned = url.trim();
+    const parsed = new URL(cleaned.startsWith('http') ? cleaned : `http://${cleaned}`);
+    const hostname = parsed.hostname.toLowerCase();
+    
+    // Check loopback, localhost, and local domain suffixes
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local')) {
+      return true;
+    }
+    
+    // Check IPv4 Private Ranges:
+    // Class A: 10.0.0.0 – 10.255.255.255
+    // Class B: 172.16.0.0 – 172.31.255.255
+    // Class C: 192.168.0.0 – 192.168.255.255
+    // Link Local: 169.254.0.0 - 169.254.255.255
+    const parts = hostname.split('.');
+    if (parts.length === 4) {
+      const p1 = parseInt(parts[0], 10);
+      const p2 = parseInt(parts[1], 10);
+      if (!isNaN(p1)) {
+        if (p1 === 10) return true;
+        if (p1 === 192 && p2 === 168) return true;
+        if (p1 === 169 && p2 === 254) return true;
+        if (p1 === 172 && p2 >= 16 && p2 <= 31) return true;
+      }
+    }
+    
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
+
